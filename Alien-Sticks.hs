@@ -32,27 +32,49 @@ data Move
 data Winner = Winner PlayerId
     deriving (Show, Eq)
 
+validHand :: Hand -> Bool
+validHand hand =
+    maxFingers hand > 0
+    && fingers hand >= 0
+    && fingers hand < maxFingers hand
+
+validPlayer :: Player -> Bool
+validPlayer player =
+    not (null (hands player))
+    && null [hand | hand <- hands player, not (validHand hand)]
+
+validGame :: Game -> Bool
+validGame game = 
+    case players game of
+        [first, second] ->
+            playerId first /= playerId second
+            && validPlayer first
+            && validPlayer second
+            && (currentPlayer game == playerId first || currentPlayer game == playerId second)
+        _ -> False
 
 --Fogarty story 2
 
 
 
 checkWinner :: Game -> Maybe Winner
-checkWinner game =
-  case players game of
-    [first, second]
-      | hasLiveHand first && allHandsDead second ->
-          Just (Winner (playerId first))
-      | hasLiveHand second && allHandsDead first ->
-          Just (Winner (playerId second))
-    _ -> Nothing
-  where
-    hasLiveHand player = any ((> 0) . fingers) (hands player)
+checkWinner game
+    | not (validGame game) = Nothing
+    | otherwise =
+        case players game of
+            [first, second]
+                | hasLiveHand first && allHandsDead second ->
+                    Just (Winner (playerId first))
+                | hasLiveHand second && allHandsDead first ->
+                    Just (Winner (playerId second))
+            _ -> Nothing
+    where
+        hasLiveHand player = not (null (filter ((> 0) . fingers) (hands player)))
 
-    allHandsDead player =
-      case hands player of
-        [] -> False
-        playerHands -> all ((== 0) . fingers) playerHands
+        allHandsDead player =
+            case hands player of
+                [] -> False
+                playerHands -> all ((== 0) . fingers) playerHands
 
 
 
@@ -60,15 +82,23 @@ checkWinner game =
 -- FOgarty issue 3
 
 
-makeMove :: Game -> Move -> Game
-makeMove game move =
-    case players game of
-        [first, second]
-            | playerId first == currentPlayer game ->
-                applyMove first second (\actor target -> [actor, target])
-            | playerId second == currentPlayer game ->
-                applyMove second first (\actor target -> [target, actor])
-        _ -> game
+makeMove :: Game -> Move -> Either String Game
+makeMove game move
+    | not (validGame game) = Left "invalid game"
+    | checkWinner game /= Nothing = Left "Game already has a winner"
+    | otherwise =
+        case legalMoves game of
+            Nothing -> Left "invalid game"
+            Just moves
+                | not (move `elem` moves) -> Left "illegal move"
+                | otherwise ->
+                    case players game of
+                        [first, second]
+                            | playerId first == currentPlayer game ->
+                                Right (applyMove first second (\actor target -> [actor, target]))
+                            | playerId second == currentPlayer game ->
+                                Right (applyMove second first (\actor target -> [target, actor]))
+                        _ -> Left "Invalid game"
   where
     applyMove actor target restoreOrder =
         let (updatedActor, updatedTarget) =
@@ -101,17 +131,18 @@ makeMove game move =
                          | (position, hand) <- zip [0..] (hands player)] }
 
 -- Story 4: Find all the legal moves
-legalMoves :: Game -> [Move]
+legalMoves :: Game -> Maybe [Move]
 legalMoves game
-    | checkWinner game /= Nothing = []
+    | not (validGame game) = Nothing
+    | checkWinner game /= Nothing = Just []
     | otherwise =
         case players game of
             [first, second]
                 | currentPlayer game == playerId first ->
-                    movesFor first second
+                    Just (movesFor first second)
                 | currentPlayer game == playerId second ->
-                    movesFor second first
-            _ -> []
+                    Just (movesFor second first)
+            _ -> Nothing
 
 movesFor :: Player -> Player -> [Move]
 movesFor actor opponent = hitMoves ++ splitMoves
@@ -148,9 +179,11 @@ movesFor actor opponent = hitMoves ++ splitMoves
 -- Story 5
 
 showGame :: Game -> String
-showGame game =
-    unlines (map showPlayer (players game)) ++
-    "Current player: " ++ showPlayerId (currentPlayer game) ++ "\n"
+showGame game
+    | not (validGame game) = "Invalid game"
+    | otherwise =
+        unlines (map showPlayer (players game)) ++
+        "Current player: " ++ showPlayerId (currentPlayer game) ++ "\n"
 
 showPlayerId :: PlayerId -> String
 showPlayerId PlayerOne = "Player One"
