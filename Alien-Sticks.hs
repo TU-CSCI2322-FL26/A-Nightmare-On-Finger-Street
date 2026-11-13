@@ -99,3 +99,21 @@ makeMove game move =
     updateHand (HandIndex index) change player =
         player { hands = [if position == index then change hand else hand
                          | (position, hand) <- zip [0..] (hands player)] }
+
+-- Story 5
+
+showGame :: Game -> String
+showGame game =
+    unlines (map showPlayer (players game)) ++
+    "Current player: " ++ showPlayerId (currentPlayer game) ++ "\n"
+
+showPlayerId :: PlayerId -> String
+showPlayerId PlayerOne = "Player One"
+showPlayerId PlayerTwo = "Player Two"
+
+showPlayer :: Player -> String
+showPlayer player = 
+    showPlayerId (playerId player) ++ ": " ++ unwords (map showHand (hands player))
+
+showHand :: Hand -> String
+showHand hand = "[" ++ show (fingers hand) ++ "/" ++ show (maxFingers hand) ++ "]"
