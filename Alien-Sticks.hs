@@ -99,3 +99,50 @@ makeMove game move =
     updateHand (HandIndex index) change player =
         player { hands = [if position == index then change hand else hand
                          | (position, hand) <- zip [0..] (hands player)] }
+
+
+
+-- Story 4: Find all the legal moves
+legalMoves :: Game -> [Move]
+legalMoves game
+    | checkWinner game /= Nothing = []
+    | otherwise =
+        case players game of
+            [first, second]
+                | currentPlayer game == playerId first ->
+                    movesFor first second
+                | currentPlayer game == playerId second ->
+                    movesFor second first
+            _ -> []
+
+movesFor :: Player -> Player -> [Move]
+movesFor actor opponent = hitMoves ++ splitMoves
+  where
+    actorHands = zip [0..] (hands actor)
+    opponentHands = zip [0..] (hands opponent)
+
+    hitMoves =
+        [ Hit (HandIndex i) (HandIndex j)
+        | (i, source) <- actorHands
+        , (j, target) <- opponentHands
+        , fingers source > 0
+        , fingers target > 0
+        ]
+
+    splitMoves =
+        [ Split (HandIndex i) (HandIndex j)
+        | (i, source) <- actorHands
+        , (j, destination) <- actorHands
+        , i /= j
+        , let total = fingers source + fingers destination
+        , let newDestination = total `div` 2
+        , let newSource = total - newDestination
+        , newSource > 0
+        , newDestination > 0
+        , newSource < maxFingers source
+        , newDestination < maxFingers destination
+        , newSource /= fingers source
+          || newDestination /= fingers destination
+        , newSource /= fingers destination
+          || newDestination /= fingers source
+        ]
