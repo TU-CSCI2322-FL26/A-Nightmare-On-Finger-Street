@@ -55,6 +55,7 @@ validGame game =
 
 --Fogarty story 2
 
+-- The winner needs a live hand and the opponent needs only dead hands.
 
 
 checkWinner :: Game -> Maybe Winner
@@ -82,6 +83,9 @@ checkWinner game
 -- FOgarty issue 3
 
 
+-- Apply the move for the current player, then pass the turn.
+
+
 makeMove :: Game -> Move -> Either String Game
 makeMove game move
     | not (validGame game) = Left "invalid game"
@@ -103,7 +107,8 @@ makeMove game move
     applyMove actor target restoreOrder =
         let (updatedActor, updatedTarget) =
                 case move of
-                    Hit source destination ->
+                    Hit source destination ->      -- A hit that reaches the target hand's limit sets it to zero.
+
                         let attack = fingers (handAt source actor)
                             hit hand =
                                 let total = fingers hand + attack
