@@ -74,11 +74,7 @@ validGame game =
 
 --Fogarty story 2
 
-<<<<<<< Updated upstream
 -- The winner needs a live hand and the opponent needs only dead hands.
-=======
--- Win Condition Checking
->>>>>>> Stashed changes
 
 -- Checks if the game has ended and returns the winner if there is one. 
 -- Returns Nothing if the game is still ongoing or invalid.
@@ -149,14 +145,10 @@ makeMove game move
     applyMove actor target restoreOrder =
         let (updatedActor, updatedTarget) =
                 case move of
-<<<<<<< Updated upstream
-                    Hit source destination ->      -- A hit that reaches the target hand's limit sets it to zero.
 
-=======
                     -- Add attack fingers to the target hand.
                     -- If the total reaches or exceeds the max fingers the targets hand dies.
                     Hit source destination ->
->>>>>>> Stashed changes
                         let attack = fingers (handAt source actor)
                             hit hand =
                                 let total = fingers hand + attack
