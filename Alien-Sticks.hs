@@ -1,3 +1,4 @@
+-- Data Types
 
 type Fingers = Int
 
@@ -32,16 +33,34 @@ data Move
 data Winner = Winner PlayerId
     deriving (Show, Eq)
 
+-- Valid check functions
+
+-- Valid Hand checks the bounds of the hands
+-- 1. makes sure that the hand can have at least one finger
+-- 2. makes sure that the hand has a non-negative number of fingers
+-- 3. makes sure that the hand has less than the maximum number of fingers
+
+
 validHand :: Hand -> Bool
 validHand hand =
     maxFingers hand > 0
     && fingers hand >= 0
     && fingers hand < maxFingers hand
 
+-- Valid Player checks that the player has at least one hand and that all hands are valid
+-- Uses a list comprehension to check that all hands are valid, and that the player has at least one hand. Filtering out any invalid hand
+-- if the resulting list is empty then all hands are valid
+
 validPlayer :: Player -> Bool
 validPlayer player =
     not (null (hands player))
     && null [hand | hand <- hands player, not (validHand hand)]
+
+--Checks whether the overall game state is valid
+-- 1. Pattern matches first and second player. Enforces a two player game.
+-- 2. Makes sure players have different player ids
+-- 3. Makes sure both players are valid
+-- 4. Makes sure the current player is one of the two players
 
 validGame :: Game -> Bool
 validGame game = 
@@ -55,8 +74,16 @@ validGame game =
 
 --Fogarty story 2
 
+<<<<<<< Updated upstream
 -- The winner needs a live hand and the opponent needs only dead hands.
+=======
+-- Win Condition Checking
+>>>>>>> Stashed changes
 
+-- Checks if the game has ended and returns the winner if there is one. 
+-- Returns Nothing if the game is still ongoing or invalid.
+-- Uses maybe winner so invalid or ongoing games can be evaluated as Nothing
+-- Without throwing an exepctions.
 
 checkWinner :: Game -> Maybe Winner
 checkWinner game
@@ -64,14 +91,20 @@ checkWinner game
     | otherwise =
         case players game of
             [first, second]
+                --First Player wins if they have at least one live hand
+                -- and all of the second players hands are dead
                 | hasLiveHand first && allHandsDead second ->
                     Just (Winner (playerId first))
+                -- Second Player wins with same conditions as first player
                 | hasLiveHand second && allHandsDead first ->
                     Just (Winner (playerId second))
+            -- covers games still in progress.
             _ -> Nothing
     where
+        -- Is true if player has at least one hand with more than 0 fingers
         hasLiveHand player = not (null (filter ((> 0) . fingers) (hands player)))
 
+        -- True if the player has at least one hand and all of the hands are dead
         allHandsDead player =
             case hands player of
                 [] -> False
@@ -82,6 +115,10 @@ checkWinner game
 
 -- FOgarty issue 3
 
+-- Moves
+
+-- attempts to make a move in the game. It will either return an error (left)
+-- or the new game state (right). 
 
 -- Apply the move for the current player, then pass the turn.
 
@@ -91,11 +128,15 @@ makeMove game move
     | not (validGame game) = Left "invalid game"
     | checkWinner game /= Nothing = Left "Game already has a winner"
     | otherwise =
+        -- Checks against all the legal moves for the current player. If the move is not in the list of 
+        -- legal moves it returns an error. Otherwise it applies the move to the game state and returns 
+        -- a new game state.
         case legalMoves game of
             Nothing -> Left "invalid game"
             Just moves
                 | not (move `elem` moves) -> Left "illegal move"
                 | otherwise ->
+                    -- Helps identify whose turn it is
                     case players game of
                         [first, second]
                             | playerId first == currentPlayer game ->
@@ -104,11 +145,18 @@ makeMove game move
                                 Right (applyMove second first (\actor target -> [target, actor]))
                         _ -> Left "Invalid game"
   where
+    -- applies valid moves and then switches the turn to the opponent.
     applyMove actor target restoreOrder =
         let (updatedActor, updatedTarget) =
                 case move of
+<<<<<<< Updated upstream
                     Hit source destination ->      -- A hit that reaches the target hand's limit sets it to zero.
 
+=======
+                    -- Add attack fingers to the target hand.
+                    -- If the total reaches or exceeds the max fingers the targets hand dies.
+                    Hit source destination ->
+>>>>>>> Stashed changes
                         let attack = fingers (handAt source actor)
                             hit hand =
                                 let total = fingers hand + attack
@@ -116,6 +164,7 @@ makeMove game move
                                     if total >= maxFingers hand then 0 else total }
                         in (actor, updateHand destination hit target)
 
+                    -- Split the fingers between two hands of the same player.
                     Split source destination ->
                         let total = fingers (handAt source actor)
                                   + fingers (handAt destination actor)
@@ -123,7 +172,7 @@ makeMove game move
                             setFingers count hand = hand { fingers = count }
                             updated = updateHand destination (setFingers half)
                                     (updateHand source (setFingers (total - half)) actor)
-                        in (updated, target)
+                        in (updated, target) -- make opponents turn
 
         in game { players = restoreOrder updatedActor updatedTarget
                 , currentPlayer = playerId target
@@ -135,7 +184,11 @@ makeMove game move
         player { hands = [if position == index then change hand else hand
                          | (position, hand) <- zip [0..] (hands player)] }
 
+
 -- Story 4: Find all the legal moves
+
+-- Returns Nothing if the game is invalid, a Just [] if game is over,
+-- or a Just [Move] with all the legal moves (hit and split) for current player
 legalMoves :: Game -> Maybe [Move]
 legalMoves game
     | not (validGame game) = Nothing
@@ -149,12 +202,16 @@ legalMoves game
                     Just (movesFor second first)
             _ -> Nothing
 
+-- Finds all the legal moves for the current player
 movesFor :: Player -> Player -> [Move]
 movesFor actor opponent = hitMoves ++ splitMoves
   where
     actorHands = zip [0..] (hands actor)
     opponentHands = zip [0..] (hands opponent)
 
+    -- Generates all the legal attacks for current player.
+    -- Legal attacks are only possible if the turn attacker and targer have
+    -- each have at least one finger on their hand.
     hitMoves =
         [ Hit (HandIndex i) (HandIndex j)
         | (i, source) <- actorHands
@@ -163,26 +220,31 @@ movesFor actor opponent = hitMoves ++ splitMoves
         , fingers target > 0
         ]
 
+    -- Generates all the legal splits for current player.
     splitMoves =
         [ Split (HandIndex i) (HandIndex j)
         | (i, source) <- actorHands
         , (j, destination) <- actorHands
-        , i /= j
+        , i /= j    -- can't split hand with self
         , let total = fingers source + fingers destination
-        , let newDestination = total `div` 2
-        , let newSource = total - newDestination
-        , newSource > 0
+        , let newDestination = total `div` 2    -- floor half to destinationn
+        , let newSource = total - newDestination    -- ceiling half stays on source
+        , newSource > 0     --Neither resulting hand can be dead after split
         , newDestination > 0
-        , newSource < maxFingers source
+        , newSource < maxFingers source    -- Neither resulting hand can exceed max fingers 
         , newDestination < maxFingers destination
+        -- Stops players from splitting if the resulting hands would be the same as before
         , newSource /= fingers source
           || newDestination /= fingers destination
+        -- Precent mirror swapping (hand goes from 1 to 2 and 2 to 1)
         , newSource /= fingers destination
           || newDestination /= fingers source
         ]
         
 -- Story 5
+-- Formating
 
+-- Makes the full game human readable
 showGame :: Game -> String
 showGame game
     | not (validGame game) = "Invalid game"
@@ -190,13 +252,16 @@ showGame game
         unlines (map showPlayer (players game)) ++
         "Current player: " ++ showPlayerId (currentPlayer game) ++ "\n"
 
+-- makes the player id human readable
 showPlayerId :: PlayerId -> String
 showPlayerId PlayerOne = "Player One"
 showPlayerId PlayerTwo = "Player Two"
 
+-- formats the player name and their hands human readable
 showPlayer :: Player -> String
 showPlayer player = 
     showPlayerId (playerId player) ++ ": " ++ unwords (map showHand (hands player))
 
+-- Format hand to current fingers/Max Fingers
 showHand :: Hand -> String
 showHand hand = "[" ++ show (fingers hand) ++ "/" ++ show (maxFingers hand) ++ "]"
