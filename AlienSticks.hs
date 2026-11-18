@@ -33,7 +33,8 @@ data Move
     | Split HandIndex HandIndex
     deriving (Show, Eq)
 
-data Winner = Winner PlayerId
+data Winner
+    = Winner PlayerId
     | Draw
     deriving (Show, Eq)
 
