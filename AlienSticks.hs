@@ -25,6 +25,7 @@ data Player = Player
 data Game = Game
     { players       :: [Player]
     , currentPlayer :: PlayerId
+    , turnCounter :: Int 
     } deriving (Show, Eq)
 
 data Move
@@ -33,8 +34,11 @@ data Move
     deriving (Show, Eq)
 
 data Winner = Winner PlayerId
+    | Draw
     deriving (Show, Eq)
 
+maxTurns :: Int
+maxTurns = 500
 -- Valid check functions
 
 -- Valid Hand checks the bounds of the hands
@@ -86,6 +90,7 @@ validGame game =
 checkWinner :: Game -> Maybe Winner
 checkWinner game
     | not (validGame game) = Nothing
+    | turnCounter game >= maxTurns = Just Draw
     | otherwise =
         case players game of
             [first, second]
@@ -97,6 +102,7 @@ checkWinner game
                 | hasLiveHand second && allHandsDead first ->
                     Just (Winner (playerId second))
             -- covers games still in progress.
+                
             _ -> Nothing
     where
         -- Is true if player has at least one hand with more than 0 fingers
@@ -125,6 +131,7 @@ makeMove :: Game -> Move -> Either String Game
 makeMove game move
     | not (validGame game) = Left "invalid game"
     | checkWinner game /= Nothing = Left "Game already has a winner"
+    | turnCounter game >= maxTurns = Left "Turn limit reached"
     | otherwise =
         -- Checks against all the legal moves for the current player. If the move is not in the list of 
         -- legal moves it returns an error. Otherwise it applies the move to the game state and returns 
@@ -157,7 +164,6 @@ makeMove game move
                                 in hand { fingers =
                                     if total >= maxFingers hand then 0 else total }
                         in (actor, updateHand destination hit target)
-
                     -- Split the fingers between two hands of the same player.
                     Split source destination ->
                         let total = fingers (handAt source actor)
@@ -167,9 +173,9 @@ makeMove game move
                             updated = updateHand destination (setFingers half)
                                     (updateHand source (setFingers (total - half)) actor)
                         in (updated, target) -- make opponents turn
-
         in game { players = restoreOrder updatedActor updatedTarget
                 , currentPlayer = playerId target
+                , turnCounter = turnCounter game + 1
                 }
 
     handAt (HandIndex index) player = hands player !! index
@@ -187,6 +193,7 @@ legalMoves :: Game -> Maybe [Move]
 legalMoves game
     | not (validGame game) = Nothing
     | checkWinner game /= Nothing = Just []
+    | turnCounter game >= maxTurns = Just []
     | otherwise =
         case players game of
             [first, second]
