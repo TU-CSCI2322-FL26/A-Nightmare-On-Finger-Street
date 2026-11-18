@@ -32,7 +32,7 @@ data Move
     | Split HandIndex HandIndex
     deriving (Show, Eq)
 
-data Winner = Winner PlayerId
+data Winner = Winner PlayerId | Tie
     deriving (Show, Eq)
 
 -- Valid check functions
